@@ -1,9 +1,10 @@
 import {
   addToShoppingList,
+  addToCompletedList,
   setPriority,
   removeItem,
-  addToCompletedList,
   clearCompleted,
+  bootUp,
 } from './model';
 import { renderShoppingList, renderCompletedList } from './view';
 
@@ -14,33 +15,27 @@ const clearCompletedBtn = document.querySelector('#clear-completed');
 
 itemInput.addEventListener('keyup', function (evt) {
   if (evt.key === 'Enter') {
-    // Add to shopping list
-    addToShoppingList(this.value);
-    // Update the view
+    addToShoppingList(evt.target.value);
     renderShoppingList();
     this.value = '';
   }
 });
 
 shoppingListDiv.addEventListener('click', function (evt) {
-  // Priority
   if (evt.target.parentElement.classList.contains('priority-control')) {
     const priority = evt.target.classList.value;
     const itemId = evt.target.parentElement.parentElement.getAttribute(
       'data-id'
     );
-
-    // Set priority
     setPriority(itemId, priority);
-    // Render View
     renderShoppingList();
   }
 
-  // Remove
   if (evt.target.classList.contains('remove-btn')) {
     const itemId = evt.target.parentElement.getAttribute('data-id');
-    // If the item is removed, update the view
-    if (removeItem(itemId)) {
+    const confirm = window.confirm('Do you really want to delete this item?');
+    if (confirm) {
+      removeItem(itemId);
       renderShoppingList();
     }
   }
@@ -57,11 +52,8 @@ completedDiv.addEventListener('drop', function (evt) {
   const itemId = evt.dataTransfer.getData('text/plain');
 
   if (itemId) {
-    // Add to completed list
     addToCompletedList(itemId);
-    // Update shopping list
     renderShoppingList();
-    // Update completed tasks list
     renderCompletedList();
   }
 });
@@ -75,3 +67,10 @@ clearCompletedBtn.addEventListener('click', function (evt) {
   clearCompleted();
   renderCompletedList();
 });
+
+// Immediately Invoked Function Expression (IIFEs)
+(() => {
+  bootUp();
+  renderShoppingList();
+  renderCompletedList();
+})();

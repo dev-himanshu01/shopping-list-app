@@ -117,13 +117,44 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"js/model.js":[function(require,module,exports) {
+})({"js/storage.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.clearCompleted = exports.getCompletedList = exports.addToCompletedList = exports.getShoppingList = exports.removeItem = exports.setPriority = exports.addToShoppingList = void 0;
+exports.getFromStore = exports.saveToStore = void 0;
+
+const saveToStore = function ({
+  shoppingList,
+  completedList
+}) {
+  window.localStorage.setItem('shoppingApp_active', JSON.stringify(shoppingList));
+  window.localStorage.setItem('shoppingApp_completed', JSON.stringify(completedList));
+};
+
+exports.saveToStore = saveToStore;
+
+const getFromStore = function () {
+  const getActive = window.localStorage.getItem('shoppingApp_active');
+  const getCompleted = window.localStorage.getItem('shoppingApp_completed');
+  return {
+    active: getActive ? JSON.parse(getActive) : [],
+    completed: getCompleted ? JSON.parse(getCompleted) : []
+  };
+};
+
+exports.getFromStore = getFromStore;
+},{}],"js/model.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.bootUp = exports.getCompletedList = exports.getShoppingList = exports.clearCompleted = exports.removeItem = exports.setPriority = exports.addToCompletedList = exports.addToShoppingList = void 0;
+
+var _storage = require("./storage");
+
 let shoppingList = [];
 let completedList = [];
 
@@ -134,9 +165,29 @@ const addToShoppingList = item => {
     item,
     priority: 'normal'
   });
+  (0, _storage.saveToStore)({
+    shoppingList,
+    completedList
+  });
 };
 
 exports.addToShoppingList = addToShoppingList;
+
+const addToCompletedList = itemId => {
+  const getItem = shoppingList.find(({
+    id
+  }) => id === itemId);
+  shoppingList = shoppingList.filter(({
+    id
+  }) => id !== itemId);
+  completedList = [getItem, ...completedList];
+  (0, _storage.saveToStore)({
+    shoppingList,
+    completedList
+  });
+};
+
+exports.addToCompletedList = addToCompletedList;
 
 const setPriority = (itemId, priority) => {
   shoppingList = shoppingList.map(item => {
@@ -148,49 +199,55 @@ const setPriority = (itemId, priority) => {
 
     return item;
   });
+  (0, _storage.saveToStore)({
+    shoppingList,
+    completedList
+  });
 };
 
 exports.setPriority = setPriority;
 
 const removeItem = itemId => {
-  const confirm = window.confirm('Do you really want to delete this item?');
-
-  if (confirm) {
-    shoppingList = shoppingList.filter(({
-      id
-    }) => id !== itemId);
-    return true;
-  }
-
-  return false;
+  shoppingList = shoppingList.filter(({
+    id
+  }) => id !== itemId);
+  (0, _storage.saveToStore)({
+    shoppingList,
+    completedList
+  });
 };
 
 exports.removeItem = removeItem;
+
+const clearCompleted = () => {
+  completedList = [];
+  (0, _storage.saveToStore)({
+    shoppingList,
+    completedList
+  });
+};
+
+exports.clearCompleted = clearCompleted;
 
 const getShoppingList = () => shoppingList;
 
 exports.getShoppingList = getShoppingList;
 
-const addToCompletedList = itemId => {
-  const getItem = shoppingList.find(({
-    id
-  }) => id === itemId);
-  shoppingList = shoppingList.filter(({
-    id
-  }) => id !== itemId);
-  completedList = [getItem, ...completedList];
-};
-
-exports.addToCompletedList = addToCompletedList;
-
 const getCompletedList = () => completedList;
 
 exports.getCompletedList = getCompletedList;
 
-const clearCompleted = () => completedList = [];
+const bootUp = () => {
+  const {
+    active,
+    completed
+  } = (0, _storage.getFromStore)();
+  shoppingList = active;
+  completedList = completed;
+};
 
-exports.clearCompleted = clearCompleted;
-},{}],"js/Item.js":[function(require,module,exports) {
+exports.bootUp = bootUp;
+},{"./storage":"js/storage.js"}],"js/Item.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -207,7 +264,7 @@ const Item = (title, priority = 'normal', id) => {
     <span class="low"></span>
   </div>
   <div class="remove-btn">REMOVE</div>
-</div>`;
+  </div>`;
 };
 
 var _default = Item;
@@ -220,9 +277,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.renderCompletedList = exports.renderShoppingList = void 0;
 
-var _Item = _interopRequireDefault(require("./Item"));
-
 var _model = require("./model");
+
+var _Item = _interopRequireDefault(require("./Item"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -254,7 +311,7 @@ const renderCompletedList = () => {
 };
 
 exports.renderCompletedList = renderCompletedList;
-},{"./Item":"js/Item.js","./model":"js/model.js"}],"js/index.js":[function(require,module,exports) {
+},{"./model":"js/model.js","./Item":"js/Item.js"}],"js/index.js":[function(require,module,exports) {
 "use strict";
 
 var _model = require("./model");
@@ -267,29 +324,25 @@ const completedDiv = document.querySelector('.completed');
 const clearCompletedBtn = document.querySelector('#clear-completed');
 itemInput.addEventListener('keyup', function (evt) {
   if (evt.key === 'Enter') {
-    // Add to shopping list
-    (0, _model.addToShoppingList)(this.value); // Update the view
-
+    (0, _model.addToShoppingList)(evt.target.value);
     (0, _view.renderShoppingList)();
     this.value = '';
   }
 });
 shoppingListDiv.addEventListener('click', function (evt) {
-  // Priority
   if (evt.target.parentElement.classList.contains('priority-control')) {
     const priority = evt.target.classList.value;
-    const itemId = evt.target.parentElement.parentElement.getAttribute('data-id'); // Set priority
-
-    (0, _model.setPriority)(itemId, priority); // Render View
-
+    const itemId = evt.target.parentElement.parentElement.getAttribute('data-id');
+    (0, _model.setPriority)(itemId, priority);
     (0, _view.renderShoppingList)();
-  } // Remove
-
+  }
 
   if (evt.target.classList.contains('remove-btn')) {
-    const itemId = evt.target.parentElement.getAttribute('data-id'); // If the item is removed, update the view
+    const itemId = evt.target.parentElement.getAttribute('data-id');
+    const confirm = window.confirm('Do you really want to delete this item?');
 
-    if ((0, _model.removeItem)(itemId)) {
+    if (confirm) {
+      (0, _model.removeItem)(itemId);
       (0, _view.renderShoppingList)();
     }
   }
@@ -304,11 +357,8 @@ completedDiv.addEventListener('drop', function (evt) {
   const itemId = evt.dataTransfer.getData('text/plain');
 
   if (itemId) {
-    // Add to completed list
-    (0, _model.addToCompletedList)(itemId); // Update shopping list
-
-    (0, _view.renderShoppingList)(); // Update completed tasks list
-
+    (0, _model.addToCompletedList)(itemId);
+    (0, _view.renderShoppingList)();
     (0, _view.renderCompletedList)();
   }
 });
@@ -319,7 +369,13 @@ clearCompletedBtn.addEventListener('click', function (evt) {
   evt.preventDefault();
   (0, _model.clearCompleted)();
   (0, _view.renderCompletedList)();
-});
+}); // Immediately Invoked Function Expression (IIFEs)
+
+(() => {
+  (0, _model.bootUp)();
+  (0, _view.renderShoppingList)();
+  (0, _view.renderCompletedList)();
+})();
 },{"./model":"js/model.js","./view":"js/view.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -348,7 +404,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "53042" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "58038" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

@@ -7,7 +7,7 @@ const Item = (title, priority = 'normal', id) => {
     <span class="low"></span>
   </div>
   <div class="remove-btn">REMOVE</div>
-</div>`;
+  </div>`;
 };
 
 export default Item;
